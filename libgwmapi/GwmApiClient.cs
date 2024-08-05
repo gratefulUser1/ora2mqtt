@@ -114,6 +114,9 @@ public partial class GwmApiClient
     private async Task<T> GetResponseAsync<T>(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         response.EnsureSuccessStatusCode();
+        // DEBUG
+        // string theText= await response.Content.ReadAsStringAsync();
+        // Console.Write(theText);
         var result = await response.Content.ReadFromJsonAsync<GwmResponse<T>>(cancellationToken: cancellationToken);
         CheckResponse(result);
         return result.Data;
