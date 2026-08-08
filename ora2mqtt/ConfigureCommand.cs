@@ -1,22 +1,25 @@
 ﻿using CommandLine;
 using libgwmapi.DTO.UserAuth;
 using libgwmapi;
-using MQTTnet.Client;
 using MQTTnet.Exceptions;
 using MQTTnet;
 using Sharprompt;
 using Sharprompt.Fluent;
 using YamlDotNet.Serialization;
-using System.Runtime.InteropServices;
-using System.Security.Cryptography.X509Certificates;
+using ora2mqtt.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace ora2mqtt
 {
     [Verb("configure", HelpText = "run config file wizard")]
     public class ConfigureCommand:BaseCommand
     {
+        private ILogger<ConfigureCommand> _logger;
+
         public async Task<int> Run(CancellationToken cancellationToken)
         {
+            Setup();
+            _logger = LoggerFactory.CreateLogger<ConfigureCommand>();
             Ora2MqttOptions config;
             if (!File.Exists(ConfigFile))
             {
@@ -59,7 +62,7 @@ namespace ora2mqtt
             {
                 options.Country = Prompt.Select<string>(o => o
                     .WithMessage("Please choose your country")
-                    .WithItems(new[] { "DE", "GB" })
+                    .WithItems(new[] { "DE", "GB", "EE" })
                 );
             }
         }
@@ -76,7 +79,7 @@ namespace ora2mqtt
                 }
                 catch (GwmApiException e)
                 {
-                    await Console.Error.WriteLineAsync($"Access token expired ({e.Message}). Trying to refresh token...");
+                    _logger.LogError($"Access token expired ({e.Message}). Trying to refresh token...");
                 }
                 var refresh = new RefreshTokenRequest
                 {
@@ -94,7 +97,7 @@ namespace ora2mqtt
                 }
                 catch (GwmApiException e)
                 {
-                    await Console.Error.WriteLineAsync($"Token refresh failed: {e.Message}");
+                    _logger.LogError($"Token refresh failed: {e.Message}");
                 }
             }
             var request = new LoginAccountRequest
@@ -141,7 +144,7 @@ namespace ora2mqtt
             var options = oraOptions.Mqtt;
             options.Host = Prompt.Input<string>("Please enter your mqtt server host or ip", defaultValue: options.Host);
 
-            if (!Prompt.Confirm("Does you mqtt server require credentials?"))
+            if (!Prompt.Confirm("Does your mqtt server require credentials?"))
             {
                 options.Username = String.Empty;
                 options.Password = String.Empty;
@@ -150,6 +153,17 @@ namespace ora2mqtt
             {
                 options.Username = Prompt.Input<string>("Please enter your mqtt username", defaultValue: options.Username);
                 options.Password = Prompt.Password("Please enter your mqtt password");
+            }
+
+            options.UseTls = Prompt.Confirm("Do you want to use TLS on port 8883?");
+
+            if (Prompt.Confirm("Do you want to use Home Assistant discovery?"))
+            {
+                options.HomeAssistantDiscoveryTopic = Prompt.Input<string>("Please enter the Home Assistant discovery topic", defaultValue: "homeassistant");
+            }
+            else
+            {
+                options.HomeAssistantDiscoveryTopic = null;
             }
         }
 
@@ -160,10 +174,11 @@ namespace ora2mqtt
 
             try
             {
-                var factory = new MqttFactory();
+                var factory = new MqttClientFactory(new MqttLogger(LoggerFactory));
                 using var client = factory.CreateMqttClient();
                 var builder = new MqttClientOptionsBuilder()
-                    .WithTcpServer(options.Host);
+                    .WithTcpServer(options.Host)
+                    .WithTlsOptions(new MqttClientTlsOptions { UseTls = options.UseTls });
                 if (!String.IsNullOrEmpty(options.Username) && !String.IsNullOrEmpty(options.Password))
                 {
                     builder = builder.WithCredentials(options.Username, options.Password);
@@ -174,7 +189,7 @@ namespace ora2mqtt
             }
             catch (MqttCommunicationException ex)
             {
-                await Console.Error.WriteLineAsync($"Mqtt connection failed: {ex.Message}");
+                _logger.LogError($"Mqtt connection failed: {ex.Message}");
                 return false;
             }
             return true;

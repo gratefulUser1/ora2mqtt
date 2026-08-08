@@ -1,3 +1,9 @@
+# Vorbei...
+
+Leider besitze ich keinen Ora Funky Cat mehr, daher wird die Entwicklung hier nicht mehr weitergehen. Wenn das jemand übernehmen möchte - immer gern.
+
+In https://github.com/zivillian/ora2mqtt/issues/42#issuecomment-4776270544 wurde https://github.com/moryoav/ha-gwm_ora erwähnt - vielleicht hilft das weiter.
+
 # Ziel
 
 Hier entsteht eine Anwendung um den aktuellen Status eines GWM ORA Funky Cat per MQTT zu veröffentlichen und über MQTT Befehle an das Auto zu senden.
@@ -27,15 +33,15 @@ vehicles:
   phases: 3
   soc:
     source: mqtt
-    topic: GWM/<vin>/status/items/2013021/value
+    topic: GWM/<vehicleId>/status/items/2013021/value
     timeout: 1m
   range:
     source: mqtt
-    topic: GWM/<vin>/status/items/2011501/value
+    topic: GWM/<vehicleId>/status/items/2011501/value
     timeout: 1m
   odometer:
     source: mqtt
-    topic: GWM/<vin>/status/items/2103010/value
+    topic: GWM/<vehicleId>/status/items/2103010/value
     timeout: 1m
 ```
 
@@ -79,9 +85,10 @@ Folgende Datenpunkte kann ich auslesen:
 | ---------- | ------------
 | 2011501    | Reichweite in km
 | 2013021    | SOC
-| 2013022    | 
+| 2013022    | verbleibende Ladedauer in Minuten
 | 2013023    | 
 | 2041142    | Ladevorgang aktiv
+| 2041301    | SOCE
 | 2042071    | 
 | 2042082    | bool Flag, nur aktiv wenn geladen wird (aber nicht immer)
 | 2078020    | 
